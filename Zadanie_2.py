@@ -1,5 +1,6 @@
 from pprint import pprint
 from random import randint
+import time
 import copy
 
 
@@ -17,19 +18,18 @@ class Struct(object):
         self.output = o
 
 
-def find_path(queue, border):
+def find_path(queue, border, max_jumps):
     # Pocitadlo skokov konika
     counter = 0
 
     while True:
 
         # Prazdna queue = Riesenie neexistuje
-        if not queue or (border == 5 and counter > 600000):
-            print('Nema riesenie!')
-            print()
+        if not queue or (counter > 600000 and border == 5):
+            print("Nema riesenie!")
             return
 
-        # Vytiahnem z queue prvy prvok,
+        # Vytiahnem z queue posledny prvok,
         # z neho budem hladat dalsiu cestu
         Node = queue.pop()
         board = Node.chessboard
@@ -39,7 +39,6 @@ def find_path(queue, border):
             pprint(board)
             print(Node.output)
             print(counter, "Jumps!")
-            print()
             return
 
         # Jazdec sa pohybuje max o 2 polia do vsetkych smerov
@@ -58,14 +57,20 @@ def find_path(queue, border):
                             queue = queue + [newNode]
                             counter += 1
 
-    # Pokial existuje legalny skok, vyvtori sa nova sachovnica s novym ohodnotenim.
-    # Takisto si zapamatam nove suradnice jazdca a tieto idaje ulozim do Struct
-    # Nasledne to vsetko pridam na zaciatok queue, aby sa prehladavalo do hlbky
+        # Pokial existuje legalny skok, vyvtori sa nova sachovnica s novym ohodnotenim.
+        # Takisto si zapamatam nove suradnice jazdca a tieto udaje ulozim do Struct
+        # Nasledne to vsetko pridam na koniec queue, aby sa prehladavalo do hlbky
+
+        if counter > max_jumps and border == 6:
+            print('Dlho to trva, idem dalej...')
+            return
 
 
-def main():
+# Funkcia generuje nahodne pociatocne pozicie a meria casy jednotlivych problemov
+def random():
+    max_jumps = int(input("Zadajte maximalny pocet skokov v milionoch:  ")) * 1e6
     x = 5
-
+    total = time.time()
     while x < 7:
 
         for i in range(5):
@@ -88,10 +93,57 @@ def main():
 
             pprint(arr)
             print()
-            find_path(queue, x)
+            start = time.time()
+            find_path(queue, x, max_jumps)
             queue.clear()
+            end = time.time()
+            print("Time: ", round(end - start, 2), "\n")
 
         x += 1
 
+    end1 = time.time()
+    print("Total time: ", round(end1 - total, 2), "\n")
 
-main()
+
+# Funkcia cita pociatocne pozicie zo suboru test.txt,
+# inak pracuje rovnako ako random funkcia
+def txt_input():
+    x = 5
+    total = time.time()
+    file = open('test.txt', 'r')
+    Lines = file.readlines()
+
+    while x < 7:
+
+        for line in Lines:
+            arr = [[0 for _ in range(x)] for _ in range(x)]
+            coordinates = line.split(" ")
+            position_x = x - int(coordinates[0])
+            position_y = int(coordinates[1])
+            arr[position_x][position_y] = 1
+            start = Struct(arr, position_x, position_y, "[" + str(position_x) + "][" + str(position_y) + "]")
+            queue = [start]
+
+            pprint(arr)
+            print()
+            start = time.time()
+            find_path(queue, x, 1e6)
+            queue.clear()
+            end = time.time()
+            print("Time: ", round(end - start, 2), "\n")
+
+        x += 1
+
+    file.close()
+    end1 = time.time()
+    print("Total time: ", round(end1 - total, 2), "\n")
+
+
+vstup = int(input(" 0 = Vstup z .txt\n"
+                  "!0 = 5 nahodnych vstupov\n"
+                  "Vstup:  "))
+
+if vstup != 0:
+    random()
+else:
+    txt_input()
