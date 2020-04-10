@@ -54,15 +54,71 @@ def decrement(address, memory):
     return memory
 
 
-def start_finding(subjects):
+def is_in_map(position, size):
+    if 0 <= position[0] < size:
+        if 0 <= position[1] < size:
+            return True
+    return False
+
+
+def is_on_treasure(position, treasures):
+    for i in range(0, len(treasures), 2):
+        if position[0] == treasures[i]:
+            if position[1] == treasures[i+1]:
+                return True
+    return False
+
+
+def found_all(found, all):
+    if found == len(all)/2:
+        print("gotcha!")
+        return True
+    return False
+
+
+def new_position(direction, position):
+    vertical = 0
+    horizontal = 0
+    if direction == 'H':
+        vertical = -1
+    elif direction == 'D':
+        vertical = 1
+    elif direction == 'L':
+        horizontal = -1
+    else:
+        horizontal = 1
+    position[0] = position[0] + vertical
+    position[1] = position[1] + horizontal
+    return position
+
+
+def calculate_fitness(steps, found, all):
+    fitness = found - (steps * 0.001)
+    print(round(fitness, 3))
+    return fitness
+
+
+def start_finding(subjects, start):
     sub = copy.deepcopy(subjects)
     gene = sub.pop()
+    position = copy.deepcopy(start)
     new_address = 0
     counter = 500
+    steps = 0
+    found = 0
     i = gene.memory[new_address]
     while counter:
         if i >= 192:
-            write(i & 63, gene.memory)
+            steps += 1
+            direction = write(i & 63, gene.memory)
+            position = new_position(direction, position)
+            if not is_in_map(position, gene.size):
+                break
+            if is_on_treasure(position, gene.treasures):
+                if found_all(found, gene.treasures):
+                    break
+                else:
+                    found += 1
         elif i >= 128:
             i, new_address = jump(i & 63, gene.memory)
             counter -= 1
@@ -74,6 +130,7 @@ def start_finding(subjects):
         new_address = (new_address + 1) % 64
         i = gene.memory[new_address]
         counter -= 1
+    fitness = calculate_fitness(steps, found, gene.treasures)
     return
 
 
@@ -116,7 +173,7 @@ def main():
         memory = generate_memory()
         subject = Struct(size, treasures, map, memory)
         subjects = [subject]
-        start_finding(subjects)
+        start_finding(subjects, start)
         memory.clear()
 
 main()
