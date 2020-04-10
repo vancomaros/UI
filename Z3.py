@@ -10,15 +10,23 @@ import copy
 # Tam mate metodu kde proste mate pointer nastaveny na 0 na zaciatku akoze na prvy element
 #
 # subject sa mozno zaobide len s memory v strukture
-class Struct(object):
-    def __init__(self, size, treasures, map=None, memory=None):
+class Map(object):
+    def __init__(self, size, start, treasures, number_of_treasures, map=None):
         if map is None:
             map = [[], []]
-        if memory is None:
-            memory = [[]]
+        if treasures is None:
+            treasures = [[]]
+        self.number_of_treasures = number_of_treasures
         self.size = size
         self.treasures = treasures
+        self.start = start
         self.map = map
+
+
+class Memory(object):
+    def __init__(self, memory=None):
+        if memory is None:
+            memory = [[]]
         self.memory = memory
 
 
@@ -60,17 +68,20 @@ def is_in_map(position, size):
             return True
     return False
 
-
-def is_on_treasure(position, treasures):
+# :)
+def is_on_treasure(position, treasures, found):
     for i in range(0, len(treasures), 2):
         if position[0] == treasures[i]:
             if position[1] == treasures[i+1]:
+                for j in found:
+                    if position == j:
+                        return False
                 return True
     return False
 
 
 def found_all(found, all):
-    if found == len(all)/2:
+    if len(found) / 2 == all:
         print("gotcha!")
         return True
     return False
@@ -92,33 +103,37 @@ def new_position(direction, position):
     return position
 
 
-def calculate_fitness(steps, found, all):
-    fitness = found - (steps * 0.001)
-    print(round(fitness, 3))
+def calculate_fitness(steps, found, all, path):
+    fitness = len(found) - (steps * 0.001)
+    fitness = round(fitness, 3)
+    if fitness > 2:
+        print(fitness, path, found)
     return fitness
 
 
-def start_finding(subjects, start):
+def start_finding(subjects, parameters):
     sub = copy.deepcopy(subjects)
     gene = sub.pop()
-    position = copy.deepcopy(start)
+    position = copy.deepcopy(parameters.start)
+    path = ""
     new_address = 0
     counter = 500
     steps = 0
-    found = 0
+    found = []
     i = gene.memory[new_address]
     while counter:
         if i >= 192:
             steps += 1
             direction = write(i & 63, gene.memory)
             position = new_position(direction, position)
-            if not is_in_map(position, gene.size):
+            path += " " + direction
+            if not is_in_map(position, parameters.size):
                 break
-            if is_on_treasure(position, gene.treasures):
-                if found_all(found, gene.treasures):
+            if is_on_treasure(position, parameters.treasures, found):
+                if found_all(found, parameters.number_of_treasures):
                     break
                 else:
-                    found += 1
+                    found.append(copy.deepcopy(position))
         elif i >= 128:
             i, new_address = jump(i & 63, gene.memory)
             counter -= 1
@@ -130,7 +145,7 @@ def start_finding(subjects, start):
         new_address = (new_address + 1) % 64
         i = gene.memory[new_address]
         counter -= 1
-    fitness = calculate_fitness(steps, found, gene.treasures)
+    fitness = calculate_fitness(steps, found, parameters.treasures, path)
     return
 
 
@@ -168,12 +183,13 @@ def main():
 
     map = [[0 for _ in range(size)] for _ in range(size)]
     start, treasures = make_map(map, Lines, size)
+    parameters_of_map = Map(size, start, treasures, number_of_treasures, map)
     file.close()
-    for i in range(20):
+    for i in range(200):
         memory = generate_memory()
-        subject = Struct(size, treasures, map, memory)
+        subject = Memory(memory)
         subjects = [subject]
-        start_finding(subjects, start)
+        start_finding(subjects, parameters_of_map)
         memory.clear()
 
 main()
