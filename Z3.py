@@ -24,10 +24,14 @@ class Map(object):
 
 
 class Memory(object):
-    def __init__(self, memory=None):
+    def __init__(self, fitness, path=None, memory=None):
         if memory is None:
             memory = [[]]
+        if path is None:
+            path = [[]]
         self.memory = memory
+        self.path = path
+        self.fitness = fitness
 
 
 def write(address, memory):
@@ -81,8 +85,7 @@ def is_on_treasure(position, treasures, found):
 
 
 def found_all(found, all):
-    if len(found) / 2 == all:
-        print("gotcha!")
+    if len(found) == all:
         return True
     return False
 
@@ -106,14 +109,13 @@ def new_position(direction, position):
 def calculate_fitness(steps, found, all, path):
     fitness = len(found) - (steps * 0.001)
     fitness = round(fitness, 3)
-    if fitness > 2:
+    if fitness > len(all)/2 - 1:
         print(fitness, path, found)
     return fitness
 
 
-def start_finding(subjects, parameters):
-    sub = copy.deepcopy(subjects)
-    gene = sub.pop()
+def start_finding(subjects, parameters, number_of_subject):
+    gene = copy.deepcopy(subjects[number_of_subject])
     position = copy.deepcopy(parameters.start)
     path = ""
     new_address = 0
@@ -130,10 +132,9 @@ def start_finding(subjects, parameters):
             if not is_in_map(position, parameters.size):
                 break
             if is_on_treasure(position, parameters.treasures, found):
+                found.append(copy.deepcopy(position))
                 if found_all(found, parameters.number_of_treasures):
                     break
-                else:
-                    found.append(copy.deepcopy(position))
         elif i >= 128:
             i, new_address = jump(i & 63, gene.memory)
             counter -= 1
@@ -145,8 +146,8 @@ def start_finding(subjects, parameters):
         new_address = (new_address + 1) % 64
         i = gene.memory[new_address]
         counter -= 1
-    fitness = calculate_fitness(steps, found, parameters.treasures, path)
-    return
+    subjects[number_of_subject].path = copy.deepcopy(path)
+    return calculate_fitness(steps, found, parameters.treasures, path)
 
 
 def generate_memory():
@@ -174,22 +175,102 @@ def make_map(map, Lines, size):
     return start, treasure
 
 
+def add_new_blood(subjects):
+    memory = generate_memory()
+    subject = Memory(-1, [], copy.deepcopy(memory))
+    subjects.append(subject)
+    return subjects
+
+
+def crossover(subjects, dad, mom, mutation_rate):
+    memory = []
+    ancester = dad
+    for i in range(64):
+        if i % 4:
+            if ancester == mom:
+                ancester = dad
+            else:
+                ancestor = mom
+        if randint(1, 100) <= mutation_rate:
+            mutant = randint(0,256)
+            memory.append(mutant)
+        else:
+            memory.append(ancester.memory[i])
+    child = Memory(-1, [], memory)
+    subjects.append(child)
+    return subjects
+
+
+def keep_winner(subjects, winner):
+    subjects.append(copy.deepcopy(winner))
+    subjects[len(subjects) - 1].path = ""
+    subjects[len(subjects) - 1].fitness = -1
+
+
+def fight(sample):
+    sample.sort(key=lambda x: x.fitness, reverse = True)
+    return sample
+
+
+def tournament(subjects, population, mutation):
+    counter = 0
+    x = len(subjects)
+    for i in range(10):
+        sample = x - population + counter
+        subjects[sample: sample + 10] = fight(subjects[sample: sample + 10])
+        keep_winner(subjects, subjects[sample])
+        for j in range (8):
+            dad = randint(0, population - 1)
+            mom = randint(0, population - 1)
+            if mom == dad:
+                mom = population - dad
+            subjects = crossover(subjects, subjects[x - population + dad], subjects[x - population + mom], mutation)
+        counter += round(population / 10)
+        add_new_blood(subjects)
+    return subjects
+
+
+def roulette():
+    return
+
+
+def reproduction(subjects, population, mutation):
+    return tournament(subjects, population, mutation)
+    return  roulette()
+
+
+def evaluate_population(population, parameters_of_map, mutation):
+    generation = 1
+    subjects = []
+    for i in range(population):
+        add_new_blood(subjects)
+    while generation:
+        for i in range(population):
+            fitness = start_finding(subjects, parameters_of_map, population*(generation-1)+i)
+            subjects[population * (generation - 1) + i].fitness = fitness
+            if fitness > parameters_of_map.number_of_treasures - 1:
+                return
+        print("************* GENERATION = ", generation, "*************\n\n\n")
+        generation += 1
+        subjects = reproduction(subjects, population, mutation) # nova generacia
+
+
 def main():
-    file = open('test.txt', 'r')
+    file = open('test3.txt', 'r')
     Lines = file.readlines()
     info = Lines[0].split(" ")
     size = int(info[0])
     number_of_treasures = int(info[1])
+    population = int(info[2])
+    mutation_rate = int(info[3])
 
     map = [[0 for _ in range(size)] for _ in range(size)]
     start, treasures = make_map(map, Lines, size)
-    parameters_of_map = Map(size, start, treasures, number_of_treasures, map)
     file.close()
-    for i in range(200):
-        memory = generate_memory()
-        subject = Memory(memory)
-        subjects = [subject]
-        start_finding(subjects, parameters_of_map)
-        memory.clear()
+    parameters_of_map = Map(size, start, treasures, number_of_treasures, map)
+    evaluate_population(population, parameters_of_map, mutation_rate)
+
 
 main()
+
+#TODO veci zo stranky
