@@ -1,78 +1,119 @@
 from itertools import permutations
+from pprint import pprint
 
 
-def check_correctness(rule, facts):
-    match = 0
-    new_rule = rule.split(", ")
-    for i in range(len(new_rule) - 1):
-        for fact in facts:
-            fact = fact.replace('\n', "")
-            if fact == new_rule[i]:
-                match += 1
-                break
-    if match == len(new_rule) - 1:
-        new_rule[len(new_rule) - 1] = new_rule[len(new_rule) - 1].replace("pridaj ", "")
-        new_fact = new_rule[len(new_rule) - 1].split("; ")
-        facts.append(new_fact[0])
-        if len(new_fact) > 1 and new_fact[1][0:6] == 'sprava':
-            print(new_fact[1][6:])
+# steps urcuje, ci sa bude krokovat, alebo sa pojde rovno do konca
+steps = 0
 
 
-def explore_rule(rule, names, variables, facts):
-    new_rule = rule
-    for i in range(len(names)):
-        for name in range(len(names[0])):
-            new_rule = new_rule.replace(variables[name], names[i][name])
-        check_correctness(new_rule.replace('\n', ""), facts)
-        new_rule = rule
+def init():
+    global steps
+    x = input('fiat/family\n').split(' ')
+    file = open(x[0] + '_facts.txt', 'r')
+    Lines = file.readlines()
+    facts = readFile(Lines)
+    file = open(x[0] + '.txt', 'r')
+    Lines = file.readlines()
+    rules = readFile(Lines)
+
+    steps = int(x[1])
+    family(rules, facts)
+    pprint(facts)
 
 
-def read_rule(rule):
-    variables = []
-    for part in rule.split(", "):
-        for word in part.split(" "):
-            if word[0] == '?' and word.replace('\n', "") not in variables \
-                    and word.replace(';', "") not in variables:
-                word = word.replace(';', "")
-                variables.append(word.replace('\n', ""))
-    return variables
+# nacitanie suborov do listov
+def readFile(file):
+    facts = []
+    for i in file:
+        facts.append(i.replace("\n", ""))
+    return facts
 
 
-def do_stuff(rules, facts):
+# z kazdeho pravidla si nacitam pocet premennych a z faktov mena
+# urobim permutacie na mena podla poctu premennych
+# pravidla preskumavam pokial vznikaju nove fakty
+def family(rules, facts):
+    messages = []
     names = get_names(facts)
+    while 1:
+        old = len(facts)
+        for rule in rules:
+            variables = read_rule(rule)
+            names_permutations = permutations(names, len(variables))
+            explore_rule(rule, list(names_permutations), variables, facts, messages)
+        if len(facts) == old:
+            pprint(messages)
+            break
 
-    for rule in rules:
-        variables = read_rule(rule)
-        names_permutations = permutations(names, len(variables))
-        explore_rule(rule, list(names_permutations), variables, facts)
 
-
+# zistim pocet mien vo faktoch
 def get_names(facts):
     names = []
     for fact in facts:
         for word in fact.split(" "):
             if 'A' <= word[0] <= 'Z':
-                if word.replace('\n', "") not in names:
-                    names.append(word.replace('\n', ""))
+                if word not in names:
+                    names.append(word)
     return names
 
 
-def readFile(file):
-    facts = []
-    for i in file:
-        facts.append(i)
-    return facts
+# zistim pocet premennych v pravidle
+def read_rule(rule):
+    variables = []
+    for part in rule.split(", "):
+        for word in part.split(" "):
+            word = word.replace(';', "")
+            if word[0] == '?' and word not in variables:
+                variables.append(word)
+    return variables
 
 
-def init():
-    file = open('facts.txt', 'r')
-    Lines = file.readlines()
-    facts = readFile(Lines)
-    file = open('rules.txt', 'r')
-    Lines = file.readlines()
-    rules = readFile(Lines)
+# dosadzujem mena do pravidiel
+def explore_rule(rule, names, variables, facts, messages):
+    new_rule = rule
+    for i in range(len(names)):
+        for name in range(len(names[0])):
+            new_rule = new_rule.replace(variables[name], names[i][name])
+        check_correctness(new_rule, facts, messages)
+        new_rule = rule
 
-    do_stuff(rules, facts)
+
+# preskumam spravnost pravidiel s dosadenymi menami
+def check_correctness(rule, facts, messages):
+    match = 0
+    new_rule = rule.split(", ")
+    for i in range(len(new_rule) - 1):
+        for fact in facts:
+            if fact == new_rule[i]:
+                match += 1
+                break
+    if match == len(new_rule) - 1:
+        process_new_fact(new_rule[len(new_rule) - 1].split("; "), facts, messages)
+
+
+# pravidlo platilo, vzkonam akcie
+def process_new_fact(new_fact, facts, messages):
+    for actions in new_fact:
+        if actions[0:6] == 'pridaj':
+            add_new_fact(actions.replace("pridaj ", ""), facts)
+        elif actions[0:5] == 'vymaz':
+            delete_fact(actions.replace("vymaz ", ""), facts)
+        elif actions[0:6] == 'sprava' and actions[7:] not in messages:
+            messages.append(actions[7:])
+
+
+def add_new_fact(new_fact, facts):
+    global steps
+    if new_fact not in facts:
+        if steps == 1:
+            print(new_fact)
+            steps = int(input('1 = next step, 2 = finish\n'))
+        facts.append(new_fact)
+
+
+def delete_fact(fact, facts):
+    if fact in facts:
+        facts.remove(fact)
 
 
 init()

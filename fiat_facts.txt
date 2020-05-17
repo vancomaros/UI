@@ -1,0 +1,4 @@
+karoseria hatchback
+hatchback 5
+5 maska mriezka
+okruhle svetla
