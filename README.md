@@ -1,4 +1,4 @@
-## Z3
+## Z2
 Eulerov kôň
 Algoritmom slepého prehľadávania (do hĺbky) je možné nájsť (všetky) riešenia (v bežných 
 výpočtových – čas a pamäť – podmienkach PC) iba pri šachovniciach do veľkosti 6x6, max 7x7. 
